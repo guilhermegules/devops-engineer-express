@@ -1,0 +1,53 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Homework Vagrant
+# ----------------
+# Provision a VM with:
+#   - Go toolchain
+#   - The calculator microservice (source in ../06-go)
+# The machine is provisioned with a shell script (scripts/startup.sh),
+# which is also copied to the VM ("sent to the vagrant machine").
+
+GO_SRC_DIR   = File.expand_path("../06-go", __dir__)
+SCRIPTS_DIR  = File.expand_path("scripts", __dir__)
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.hostname = "calculator-vm"
+
+  # Access the microservice from the host
+  config.vm.network "forwarded_port", guest: 8080, host: 8080,
+    auto_correct: true
+
+  # Keep the source in sync so the machine always sees the latest code
+  config.vm.synced_folder GO_SRC_DIR, "/home/vagrant/calculator"
+
+  # Send the start-up script to the vagrant machine
+  config.vm.synced_folder SCRIPTS_DIR, "/home/vagrant/scripts"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024"
+    vb.cpus = 2
+    vb.name = "calculator-vm"
+  end
+
+  # Minimal host packages required to bootstrap (helpful on a clean box)
+  config.vm.provision "shell", inline: <<-SHELL
+    set -euxo pipefail
+    apt-get update
+    apt-get install -y curl build-essential
+  SHELL
+
+  # Provision Go + the microservice using the start-up script
+  config.vm.provision "shell", path: "scripts/startup.sh"
+
+  # Show the microservice status at the end of provisioning
+  config.vm.post_up_message = <<-MSG
+    Calculator microservice provisioned!
+    Try it on the host:
+      curl http://localhost:8080/calc/sum/2/3
+      curl http://localhost:8080/calc/mul/4/5
+      curl http://localhost:8080/calc/history
+  MSG
+end
