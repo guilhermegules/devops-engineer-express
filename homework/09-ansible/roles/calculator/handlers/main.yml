@@ -1,0 +1,6 @@
+---
+- name: Restart calculator service
+  systemd:
+    name: "{{ service_name }}"
+    state: restarted
+  become: true

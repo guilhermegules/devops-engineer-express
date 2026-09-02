@@ -1,0 +1,2 @@
+# Convenience variable that selects the proper package list per OS family.
+base_package_list: "{{ centos_packages if ansible_os_family == 'RedHat' else ubuntu_packages }}"

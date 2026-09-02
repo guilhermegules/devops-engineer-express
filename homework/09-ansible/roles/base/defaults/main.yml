@@ -1,0 +1,16 @@
+# Base packages common to Ubuntu/Debian
+ubuntu_packages:
+  - curl
+  - wget
+  - git
+  - build-essential
+  - net-tools
+
+# Base packages common to CentOS/RHEL/Fedora
+centos_packages:
+  - curl
+  - wget
+  - git
+  - gcc
+  - make
+  - net-tools

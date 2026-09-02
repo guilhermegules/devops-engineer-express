@@ -1,0 +1,16 @@
+# Common variables shared across all roles/hosts.
+# Override per host/group as needed.
+
+# Microservice runtime info
+service_name: "calculator"
+service_port: "8080"
+
+# Application deployment paths
+app_dir: "/opt/calculator"
+app_user: "vagrant"
+app_group: "vagrant"
+service_bin: "{{ app_dir }}/{{ service_name }}"
+
+# Go installation info (matches roles/go)
+go_root_path: "/usr/local/go"
+go_path_dir: "/usr/local/go/bin"

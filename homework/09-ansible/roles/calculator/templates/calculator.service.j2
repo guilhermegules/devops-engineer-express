@@ -1,0 +1,16 @@
+[Unit]
+Description=Calculator Go microservice
+After=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_dir }}
+ExecStart={{ service_bin }}
+Restart=on-failure
+RestartSec=5
+Environment=PORT={{ service_port }}
+
+[Install]
+WantedBy=multi-user.target

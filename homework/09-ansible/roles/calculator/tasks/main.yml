@@ -1,0 +1,42 @@
+---
+- name: Copy Go source files to the target
+  copy:
+    src: "{{ item }}"
+    dest: "{{ app_dir }}/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+  loop:
+    - main.go
+    - go.mod
+  become: true
+
+- name: Build the calculator microservice
+  command: "{{ go_root_path }}/bin/go build -ldflags='-s -w' -o calculator main.go"
+  args:
+    chdir: "{{ app_dir }}"
+  environment:
+    GOPATH: "/home/{{ app_user }}/go"
+  become_user: "{{ app_user }}"
+  become: true
+  notify: Restart calculator service
+
+- name: Install systemd unit file for the calculator service
+  template:
+    src: calculator.service.j2
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    mode: "0644"
+  become: true
+  notify: Restart calculator service
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  become: true
+
+- name: Enable and start the calculator service
+  systemd:
+    name: "{{ service_name }}"
+    state: started
+    enabled: true
+  become: true

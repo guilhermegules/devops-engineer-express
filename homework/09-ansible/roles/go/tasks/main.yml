@@ -1,0 +1,57 @@
+---
+- name: Check if Go is already installed
+  command: "{{ go_install_dir }}/bin/go version"
+  register: go_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Download Go tarball
+  get_url:
+    url: "{{ go_download_url }}"
+    dest: "/tmp/{{ go_tarball }}"
+    mode: "0644"
+  when: go_check.rc != 0
+  become: true
+
+- name: Remove any existing Go installation directory
+  file:
+    path: "{{ go_install_dir }}"
+    state: absent
+  when: go_check.rc != 0
+  become: true
+
+- name: Extract Go into /usr/local
+  unarchive:
+    src: "/tmp/{{ go_tarball }}"
+    dest: /usr/local
+    remote_src: true
+    creates: "{{ go_install_dir }}/bin/go"
+  when: go_check.rc != 0
+  become: true
+
+- name: Clean up the downloaded tarball
+  file:
+    path: "/tmp/{{ go_tarball }}"
+    state: absent
+  when: go_check.rc != 0
+  become: true
+
+- name: Ensure Go bin directory is on PATH for the application user
+  lineinfile:
+    path: "/home/{{ app_user }}/.bashrc"
+    line: "export PATH=$PATH:{{ go_path_dir }}"
+    create: true
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0644"
+  become: true
+
+- name: Report installed Go version
+  command: "{{ go_install_dir }}/bin/go version"
+  register: go_version_out
+  changed_when: false
+
+- name: Show Go version
+  debug:
+    var: go_version_out.stdout

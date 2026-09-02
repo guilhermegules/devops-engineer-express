@@ -6,8 +6,10 @@
 # The machine is provisioned with a shell script (scripts/startup.sh),
 # which is also copied to the VM ("sent to the vagrant machine").
 
-GO_SRC_DIR   = File.expand_path("../06-go", __dir__)
-SCRIPTS_DIR  = File.expand_path("scripts", __dir__)
+GO_SRC_DIR   ||= File.expand_path("../06-go", __dir__)
+SCRIPTS_DIR  ||= File.expand_path("scripts", __dir__)
+
+ENV["VAGRANT_DEFAULT_PROVIDER"] ||= "virtualbox"
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/jammy64"
@@ -24,6 +26,12 @@ Vagrant.configure("2") do |config|
     vb.memory = "1024"
     vb.cpus = 2
     vb.name = "calculator-vm"
+  end
+
+  config.vm.provider "libvirt" do |lv, override|
+    override.vm.box = "generic/ubuntu2204"
+    lv.memory = 1024
+    lv.cpus = 2
   end
 
   config.vm.provision "shell", inline: <<-SHELL

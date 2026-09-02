@@ -1,0 +1,2 @@
+# Microservice runtime (paths come from inventory/group_vars/all.yml)
+service_unit_file: "/etc/systemd/system/{{ service_name }}.service"

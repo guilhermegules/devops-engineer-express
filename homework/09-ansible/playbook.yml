@@ -1,0 +1,15 @@
+---
+- name: Provision Go calculator microservice
+  hosts: calculator
+  gather_facts: true
+  become: true
+
+  roles:
+    - base
+    - go
+    - calculator
+
+  post_tasks:
+    - name: Message on completion
+      debug:
+        msg: "Microservice deployed. Try: curl http://{{ inventory_hostname }}:{{ service_port }}/calc/sum/2/3"
