@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME   = 'calculator-microservice'
+        CONTAINER_NAME = 'calculator-microservice'
+        PORT         = 8080
+    }
+
+    stages {
+        stage('CLEAN') {
+            steps {
+                echo '--- REMOVING previous containers, images and Packer plugins ---'
+                sh "bash homework/12-jenkins/clean.sh ${IMAGE_NAME} ${CONTAINER_NAME}"
+            }
+        }
+
+        stage('BAKE') {
+            steps {
+                echo '--- BAKING Docker image with Packer ---'
+                sh 'packer init homework/12-jenkins/packer/calculator.pkr.hcl'
+                sh "packer build -var 'image_name=${IMAGE_NAME}' homework/12-jenkins/packer/calculator.pkr.hcl"
+            }
+        }
+
+        stage('LAUNCH') {
+            steps {
+                echo '--- DEPLOYING microservice with Docker ---'
+
+                echo 'Stopping previous container if running...'
+                sh "docker stop ${CONTAINER_NAME} 2>/dev/null || true"
+                sh "docker rm   ${CONTAINER_NAME} 2>/dev/null || true"
+
+                echo "Starting ${CONTAINER_NAME}..."
+                sh "docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${IMAGE_NAME}:latest"
+
+                echo "Microservice deployed at http://localhost:${PORT}/calc/sum/2/3"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline finished successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+}

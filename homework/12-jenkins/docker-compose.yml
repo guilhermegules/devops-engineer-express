@@ -1,0 +1,17 @@
+services:
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins-calculator
+    ports:
+      - "8282:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jenkins_home:/var/jenkins_home
+      - ../..:/workspace
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
