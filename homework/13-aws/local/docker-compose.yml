@@ -1,0 +1,16 @@
+name: homework-13-aws-floci
+
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      # Required for real-Docker services (EC2, Lambda, RDS, EKS, ...)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist emulated AWS state across restarts
+      - ./data:/app/data
+    environment:
+      FLOCI_DEFAULT_REGION: us-east-1
+      FLOCI_DEFAULT_ACCOUNT_ID: "000000000000"
+      FLOCI_STORAGE_MODE: persistent

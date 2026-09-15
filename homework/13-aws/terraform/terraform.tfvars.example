@@ -1,0 +1,15 @@
+# Real AWS (default): leave endpoint_url empty and bake the AMI with Packer,
+# the module then auto-discovers the latest calculator-microservice-* image.
+aws_region        = "us-east-1"
+# ami_id            = "ami-<baked by packer>"  # optional; auto-discovered when omitted
+instance_type     = "t2.micro"
+# key_name          = "my-keypair"            # optional, for SSH access
+min_size          = 1
+max_size          = 3
+desired_capacity  = 2
+
+# Local mode without AWS: point the module at the floci emulator (docker compose
+# from ../local) and use floci's built-in AMI id. Uses an ALB instead of the
+# Classic ELB (floci's classic ELB can't be read by the aws_elb provider).
+# endpoint_url      = "http://localhost:4566"
+# ami_id            = "ami-0abcdef1234567890"
