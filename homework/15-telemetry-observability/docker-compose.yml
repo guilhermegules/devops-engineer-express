@@ -1,0 +1,81 @@
+name: homework-15-telemetry
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.22
+    container_name: calculator-elasticsearch
+    environment:
+      - node.name=calculator-es
+      - cluster.name=calculator-telemetry
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.ml.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      # Persist the telemetry indices across restarts
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.19.22
+    container_name: calculator-logstash
+    environment:
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      # collectd posts here from inside the network; published so you can also
+      # test the pipeline by hand with curl (see README)
+      - "9600:8080"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      # Persist the file input sincedb so logs are not re-indexed on restart
+      - logstash-data:/usr/share/logstash/data
+      # The log files collectd and the microservice write into
+      - telemetry-logs:/var/log/calculator
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.19.22
+    container_name: calculator-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  calculator:
+    build:
+      context: ../..
+      dockerfile: homework/15-telemetry-observability/Dockerfile
+    image: calculator-microservice:telemetry
+    container_name: calculator-telemetry
+    environment:
+      - LOGSTASH_URL=http://logstash:8080/
+    ports:
+      - "8080:8080"
+    volumes:
+      # Shared with logstash so both log files can be tailed there
+      - telemetry-logs:/var/log/calculator
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+volumes:
+  es-data:
+  logstash-data:
+  telemetry-logs:

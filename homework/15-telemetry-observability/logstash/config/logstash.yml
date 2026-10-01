@@ -1,0 +1,14 @@
+http.host: "0.0.0.0"
+
+xpack.monitoring.enabled: false
+
+pipeline.workers: 1
+pipeline.batch.size: 125
+
+# The collectd write_http payload is a custom schema, not ECS. With the default
+# v8 compatibility the http input stores the client address in the host.ip map,
+# which then collides with collectd's own "host" string and makes the whole
+# value list fail to decode.
+pipeline.ecs_compatibility: disabled
+
+log.level: info
