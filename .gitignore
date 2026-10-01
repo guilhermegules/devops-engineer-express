@@ -9,6 +9,9 @@
 
 # Prerequisites
 *.d
+# Jenkins seeding scripts live in init.groovy.d, which the rule above would swallow
+!homework/16-stress-test-chaos/jenkins/init.groovy.d/
+!homework/16-stress-test-chaos/jenkins/init.groovy.d/*.groovy
 
 # Object files
 *.o
