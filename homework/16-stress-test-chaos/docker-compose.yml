@@ -1,0 +1,24 @@
+services:
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins-stress-test
+    ports:
+      - "8283:8080"
+      - "50001:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    # The microservice runs on the Docker host, so the load generator has to reach it
+    # through host.docker.internal. network_mode: host is not an option here because
+    # Jenkins would then collide with the microservice on host port 8080.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Also holds the Maven cache (/var/jenkins_home/.m2), so the first build downloads
+      # Gatling's dependencies and every later build reuses them.
+      - jenkins_home:/var/jenkins_home
+      # Read only: the pipeline builds inside its own workspace copy
+      - ../..:/workspace:ro
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

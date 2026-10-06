@@ -1,0 +1,130 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    // Declared here as the fallback used by the first build. A job seeded from a script
+    // (CpsFlowDefinition) only registers these as buildable parameters after that first
+    // run, which is why every stage reads them as `params.X ?: env.X`.
+    environment {
+        APP_URL          = 'http://host.docker.internal:8080'
+        USERS            = '100'
+        RAMP_SECONDS     = '30'
+        STEADY_SECONDS   = '60'
+        MAX_ERROR_PERCENT = '1.0'
+        MAX_P95_MILLIS   = '2000'
+        STRESS_DIR       = 'homework/16-stress-test-chaos'
+    }
+
+    parameters {
+        string(name: 'APP_URL', defaultValue: 'http://host.docker.internal:8080',
+            description: 'Base URL of the Go microservice. host.docker.internal is the Docker host as seen from this container.')
+        string(name: 'USERS', defaultValue: '100',
+            description: 'Concurrent virtual users held during the steady phase.')
+        string(name: 'RAMP_SECONDS', defaultValue: '30',
+            description: 'Seconds spent ramping up to USERS.')
+        string(name: 'STEADY_SECONDS', defaultValue: '60',
+            description: 'Seconds held at USERS before the run ends.')
+        string(name: 'MAX_ERROR_PERCENT', defaultValue: '1.0',
+            description: 'Assertion: maximum percentage of failed requests.')
+        string(name: 'MAX_P95_MILLIS', defaultValue: '2000',
+            description: 'Assertion: maximum 95th percentile response time in milliseconds.')
+    }
+
+    stages {
+        stage('WAIT FOR APP') {
+            steps {
+                script {
+                    env.APP_URL           = params.APP_URL ?: env.APP_URL
+                    env.USERS             = params.USERS ?: env.USERS
+                    env.RAMP_SECONDS      = params.RAMP_SECONDS ?: env.RAMP_SECONDS
+                    env.STEADY_SECONDS    = params.STEADY_SECONDS ?: env.STEADY_SECONDS
+                    env.MAX_ERROR_PERCENT = params.MAX_ERROR_PERCENT ?: env.MAX_ERROR_PERCENT
+                    env.MAX_P95_MILLIS    = params.MAX_P95_MILLIS ?: env.MAX_P95_MILLIS
+
+                    echo "Target: ${env.APP_URL}/calc/history"
+
+                    sh '''
+                        for i in $(seq 1 30); do
+                            if curl -sf --max-time 2 "${APP_URL}/calc/history" >/dev/null; then
+                                echo "Microservice is up"
+                                exit 0
+                            fi
+                            echo "Waiting for the microservice (${i}/30)..."
+                            sleep 2
+                        done
+                        echo "Microservice never answered on ${APP_URL}/calc/history"
+                        exit 1
+                    '''
+                }
+            }
+        }
+
+        stage('STRESS TEST') {
+            steps {
+                echo "Running Gatling: ${env.USERS} users, ${env.RAMP_SECONDS}s ramp, ${env.STEADY_SECONDS}s steady"
+
+                // Reports of previous builds would otherwise pile up under
+                // target/gatling and get archived together with this run
+                sh 'rm -rf "${STRESS_DIR}/target/gatling"'
+
+                // Non zero exit when an assertion is breached, which is what turns this
+                // pipeline red. The HTML report is archived either way.
+                sh '''
+                    mvn -B -ntp -f "${STRESS_DIR}/pom.xml" gatling:test \
+                        -DtargetUrl="${APP_URL}" \
+                        -Dusers="${USERS}" \
+                        -DrampSeconds="${RAMP_SECONDS}" \
+                        -DsteadySeconds="${STEADY_SECONDS}" \
+                        -DmaxErrorPercent="${MAX_ERROR_PERCENT}" \
+                        -DmaxP95Millis="${MAX_P95_MILLIS}"
+                '''
+            }
+        }
+
+        stage('PUBLISH REPORT') {
+            steps {
+                script {
+                    // -t sorts by modification time, so this is the run that just finished
+                    def indexFile = sh(
+                        script: "find '${STRESS_DIR}/target/gatling' -name index.html | xargs -r ls -t | head -1",
+                        returnStdout: true).trim()
+
+                    if (!indexFile) {
+                        echo 'No Gatling report was generated'
+                        return
+                    }
+
+                    def reportDir = indexFile.replaceAll('/index\\.html$', '')
+                    echo "Gatling report: ${reportDir}"
+
+                    publishHTML(target: [
+                        reportDir: reportDir,
+                        reportFiles: 'index.html',
+                        reportName: 'Gatling Report',
+                        keepAll: true,
+                        alwaysLinkToLastBuild: true
+                    ])
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: "${env.STRESS_DIR}/target/gatling/**",
+                             allowEmptyArchive: true,
+                             fingerprint: true
+        }
+        success {
+            echo 'Stress test passed: the microservice met every assertion.'
+        }
+        failure {
+            echo 'Stress test failed: an assertion was breached or the microservice was unreachable. Read the archived Gatling report.'
+        }
+    }
+}
