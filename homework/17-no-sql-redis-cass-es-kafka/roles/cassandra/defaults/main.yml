@@ -1,0 +1,20 @@
+# Apache Cassandra 4.1 from the official Apache Debian repository.
+cassandra_version_branch: "41x"
+cassandra_cluster_name: "NoSQL Homework Cluster"
+cassandra_listen_address: "127.0.0.1"
+cassandra_rpc_address: "0.0.0.0"
+cassandra_seeds: "127.0.0.1"
+cassandra_native_port: 9042
+cassandra_endpoint_snitch: "SimpleSnitch"
+cassandra_max_heap: "1G"
+cassandra_new_heap: "256M"
+
+cassandra_config_file: /etc/cassandra/cassandra.yaml
+cassandra_env_file: /etc/cassandra/cassandra-env.sh
+cassandra_service: cassandra
+
+cassandra_key_url: https://downloads.apache.org/cassandra/KEYS
+cassandra_keyring: /etc/apt/keyrings/apache-cassandra.asc
+cassandra_repo: >-
+  deb [signed-by={{ cassandra_keyring }}]
+  https://debian.cassandra.apache.org {{ cassandra_version_branch }} main

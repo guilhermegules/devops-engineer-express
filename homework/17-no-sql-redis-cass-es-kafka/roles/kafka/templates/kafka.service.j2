@@ -1,0 +1,20 @@
+[Unit]
+Description=Apache Kafka (KRaft mode)
+Documentation=https://kafka.apache.org/documentation/
+After=network.target
+
+[Service]
+Type=simple
+User={{ kafka_user }}
+Group={{ kafka_group }}
+# Keep logs outside the root-owned install dir and cap the JVM heap.
+Environment="LOG_DIR={{ kafka_log_dir }}"
+Environment="KAFKA_HEAP_OPTS=-Xms512m -Xmx512m"
+ExecStart={{ kafka_install_dir }}/bin/kafka-server-start.sh {{ kafka_config_file }}
+ExecStop={{ kafka_install_dir }}/bin/kafka-server-stop.sh
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

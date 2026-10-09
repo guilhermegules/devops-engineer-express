@@ -1,0 +1,15 @@
+# Managed by Ansible - homework 17 (roles/elasticsearch).
+cluster.name: {{ elasticsearch_cluster_name }}
+node.name: {{ elasticsearch_node_name }}
+
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+network.host: {{ elasticsearch_network_host }}
+http.port: {{ elasticsearch_http_port }}
+
+# Single node, no discovery/security for the homework.
+discovery.type: single-node
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.ml.enabled: false

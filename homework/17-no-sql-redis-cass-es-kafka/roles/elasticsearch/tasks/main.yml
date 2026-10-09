@@ -1,0 +1,66 @@
+---
+- name: Install Elasticsearch (Debian)
+  block:
+    - name: Add the Elasticsearch signing key
+      get_url:
+        url: "{{ elasticsearch_key_url }}"
+        dest: "{{ elasticsearch_keyring }}"
+        mode: "0644"
+
+    - name: Add the Elasticsearch APT repository
+      apt_repository:
+        repo: "{{ elasticsearch_repo }}"
+        filename: elastic-8.x
+        state: present
+        update_cache: true
+
+    - name: Install the elasticsearch package
+      apt:
+        name: elasticsearch
+        state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Raise vm.max_map_count for Elasticsearch
+  copy:
+    dest: /etc/sysctl.d/99-elasticsearch.conf
+    mode: "0644"
+    content: |
+      # Elasticsearch requires at least 262144 memory map areas.
+      vm.max_map_count=262144
+  notify: Reload sysctl settings
+
+- name: Write the Elasticsearch configuration
+  template:
+    src: elasticsearch.yml.j2
+    dest: "{{ elasticsearch_config_file }}"
+    owner: root
+    group: elasticsearch
+    mode: "0660"
+  notify: Restart Elasticsearch
+
+- name: Set the JVM heap
+  template:
+    src: jvm.options.j2
+    dest: "{{ elasticsearch_heap_file }}"
+    owner: root
+    group: elasticsearch
+    mode: "0660"
+  notify: Restart Elasticsearch
+
+- name: Apply the configuration before starting the service
+  meta: flush_handlers
+
+- name: Ensure Elasticsearch is enabled and running
+  systemd:
+    name: "{{ elasticsearch_service }}"
+    state: started
+    enabled: true
+
+- name: Wait for Elasticsearch to answer
+  uri:
+    url: "http://{{ elasticsearch_network_host }}:{{ elasticsearch_http_port }}/_cluster/health"
+    status_code: 200
+  register: elasticsearch_health
+  until: elasticsearch_health.status == 200
+  retries: 30
+  delay: 5

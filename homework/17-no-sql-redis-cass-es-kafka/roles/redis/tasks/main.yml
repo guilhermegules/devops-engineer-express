@@ -1,0 +1,55 @@
+---
+- name: Install Redis (Debian)
+  apt:
+    name: redis-server
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install Redis (RedHat)
+  dnf:
+    name: redis
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Set the listen address
+  lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^bind '
+    line: "bind {{ redis_bind }}"
+  notify: Restart Redis
+
+- name: Set protected mode
+  lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^protected-mode '
+    line: "protected-mode {{ redis_protected_mode }}"
+  notify: Restart Redis
+
+- name: Enable append-only persistence
+  lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^appendonly '
+    line: "appendonly {{ redis_appendonly }}"
+  notify: Restart Redis
+
+- name: Set a memory ceiling
+  lineinfile:
+    path: "{{ redis_config_file }}"
+    regexp: '^#? *maxmemory '
+    line: "maxmemory {{ redis_maxmemory }}"
+  notify: Restart Redis
+
+- name: Apply the configuration before starting the service
+  meta: flush_handlers
+
+- name: Ensure Redis is enabled and running
+  systemd:
+    name: "{{ redis_service }}"
+    state: started
+    enabled: true
+
+- name: Wait for Redis to accept connections
+  wait_for:
+    host: "{{ redis_bind if redis_bind != '0.0.0.0' else '127.0.0.1' }}"
+    port: "{{ redis_port }}"
+    timeout: 30
