@@ -1,0 +1,35 @@
+---
+- name: Update the apt cache (Debian)
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Ensure the apt keyrings directory exists (Debian)
+  file:
+    path: "{{ apt_keyrings_dir }}"
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == 'Debian'
+
+- name: Install common packages (Debian)
+  apt:
+    name: "{{ common_packages_debian }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install common packages (RedHat)
+  dnf:
+    name: "{{ common_packages_redhat }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Report the Java version
+  command: java -version
+  register: java_version_out
+  changed_when: false
+  failed_when: false
+
+- name: Show the Java version
+  debug:
+    var: java_version_out.stderr_lines

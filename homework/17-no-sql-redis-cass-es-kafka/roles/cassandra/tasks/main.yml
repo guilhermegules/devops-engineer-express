@@ -1,0 +1,93 @@
+---
+- name: Install Cassandra (Debian)
+  block:
+    - name: Add the Apache Cassandra signing key
+      get_url:
+        url: "{{ cassandra_key_url }}"
+        dest: "{{ cassandra_keyring }}"
+        mode: "0644"
+
+    - name: Add the Apache Cassandra APT repository
+      apt_repository:
+        repo: "{{ cassandra_repo }}"
+        filename: apache-cassandra
+        state: present
+        update_cache: true
+
+    - name: Install the cassandra package
+      apt:
+        name: cassandra
+        state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Set the cluster name
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^cluster_name:'
+    line: "cluster_name: '{{ cassandra_cluster_name }}'"
+  notify: Restart Cassandra
+
+- name: Set the listen address
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^listen_address:'
+    line: "listen_address: {{ cassandra_listen_address }}"
+  notify: Restart Cassandra
+
+- name: Set the rpc (native transport) address
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^rpc_address:'
+    line: "rpc_address: {{ cassandra_rpc_address }}"
+  notify: Restart Cassandra
+
+- name: Set the seed node
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^(\s*)- seeds:'
+    line: '\1- seeds: "{{ cassandra_seeds }}"'
+  notify: Restart Cassandra
+
+- name: Set the endpoint snitch
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^endpoint_snitch:'
+    line: "endpoint_snitch: {{ cassandra_endpoint_snitch }}"
+  notify: Restart Cassandra
+
+- name: Set the native transport port
+  lineinfile:
+    path: "{{ cassandra_config_file }}"
+    regexp: '^native_transport_port:'
+    line: "native_transport_port: {{ cassandra_native_port }}"
+  notify: Restart Cassandra
+
+- name: Set the maximum heap size
+  lineinfile:
+    path: "{{ cassandra_env_file }}"
+    regexp: '^#?MAX_HEAP_SIZE='
+    line: 'MAX_HEAP_SIZE="{{ cassandra_max_heap }}"'
+  notify: Restart Cassandra
+
+- name: Set the young generation heap size
+  lineinfile:
+    path: "{{ cassandra_env_file }}"
+    regexp: '^#?HEAP_NEWSIZE='
+    line: 'HEAP_NEWSIZE="{{ cassandra_new_heap }}"'
+  notify: Restart Cassandra
+
+- name: Apply the configuration before starting the service
+  meta: flush_handlers
+
+- name: Ensure Cassandra is enabled and running
+  systemd:
+    name: "{{ cassandra_service }}"
+    state: started
+    enabled: true
+
+- name: Wait for the Cassandra native transport
+  wait_for:
+    host: "{{ cassandra_rpc_address if cassandra_rpc_address != '0.0.0.0' else '127.0.0.1' }}"
+    port: "{{ cassandra_native_port }}"
+    timeout: 300
+    delay: 10

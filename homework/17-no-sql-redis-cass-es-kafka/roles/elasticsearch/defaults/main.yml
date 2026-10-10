@@ -1,0 +1,18 @@
+# Elasticsearch 8.x from the official Elastic APT repository. The 8.x package
+# bundles its own JDK, so the Java installed by the common role is not used.
+elasticsearch_major: "8.x"
+elasticsearch_cluster_name: nosql-homework
+elasticsearch_node_name: es-node-1
+elasticsearch_network_host: "127.0.0.1"
+elasticsearch_http_port: 9200
+elasticsearch_heap_size: "1g"
+
+elasticsearch_config_file: /etc/elasticsearch/elasticsearch.yml
+elasticsearch_heap_file: /etc/elasticsearch/jvm.options.d/heap.options
+elasticsearch_service: elasticsearch
+
+elasticsearch_key_url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+elasticsearch_keyring: /usr/share/keyrings/elasticsearch-keyring.gpg
+elasticsearch_repo: >-
+  deb [signed-by={{ elasticsearch_keyring }}]
+  https://artifacts.elastic.co/packages/{{ elasticsearch_major }}/apt stable main

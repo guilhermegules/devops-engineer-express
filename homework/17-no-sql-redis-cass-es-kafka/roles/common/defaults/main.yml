@@ -1,0 +1,23 @@
+# Directory where distro signing keys are stored (Debian/Ubuntu).
+apt_keyrings_dir: /etc/apt/keyrings
+
+# Packages needed by the datastore roles: curl for the health checks, gnupg
+# and the keyring dir for the apt repositories, Java 11 for Cassandra and
+# Kafka (Elasticsearch ships its own bundled JDK).
+common_packages_debian:
+  - ca-certificates
+  - curl
+  - gnupg
+  - apt-transport-https
+  - python3
+  - python3-apt
+  - openjdk-11-jre-headless
+  - net-tools
+
+common_packages_redhat:
+  - ca-certificates
+  - curl
+  - gnupg2
+  - python3
+  - java-11-openjdk-headless
+  - net-tools

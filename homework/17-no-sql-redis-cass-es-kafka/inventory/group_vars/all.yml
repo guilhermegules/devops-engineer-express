@@ -1,0 +1,11 @@
+# Shared variables for the NoSQL stack. These take precedence over the
+# per-role defaults, so overriding a value here changes it for every host.
+
+# Service ports (also used by the verify script and the post-run message).
+redis_port: 6379
+elasticsearch_http_port: 9200
+cassandra_native_port: 9042
+kafka_port: 9092
+
+# Where the sample Go clients (source/nosql/*) expect the services to listen.
+nosql_host: "127.0.0.1"

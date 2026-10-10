@@ -1,0 +1,113 @@
+---
+- name: Create the kafka group
+  group:
+    name: "{{ kafka_group }}"
+    system: true
+
+- name: Create the kafka user
+  user:
+    name: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Ensure the Kafka directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0755"
+  loop:
+    - "{{ kafka_config_dir }}"
+    - "{{ kafka_data_dir }}"
+    - "{{ kafka_log_dir }}"
+
+- name: Check whether Kafka is already installed
+  stat:
+    path: "{{ kafka_version_dir }}/bin/kafka-server-start.sh"
+  register: kafka_installed
+
+- name: Download the Kafka tarball
+  get_url:
+    url: "{{ kafka_download_url }}"
+    dest: "/tmp/{{ kafka_tarball }}"
+    mode: "0644"
+  when: not kafka_installed.stat.exists
+
+- name: Extract Kafka
+  unarchive:
+    src: "/tmp/{{ kafka_tarball }}"
+    dest: /opt
+    remote_src: true
+    creates: "{{ kafka_version_dir }}/bin/kafka-server-start.sh"
+  when: not kafka_installed.stat.exists
+
+- name: Point /opt/kafka at the installed version
+  file:
+    src: "{{ kafka_version_dir }}"
+    dest: "{{ kafka_install_dir }}"
+    state: link
+
+- name: Clean up the downloaded tarball
+  file:
+    path: "/tmp/{{ kafka_tarball }}"
+    state: absent
+
+- name: Write the Kafka KRaft configuration
+  template:
+    src: server.properties.j2
+    dest: "{{ kafka_config_file }}"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0644"
+  notify: Restart Kafka
+
+- name: Check whether the Kafka log directory is already formatted
+  stat:
+    path: "{{ kafka_data_dir }}/meta.properties"
+  register: kafka_meta
+
+- name: Generate a Kafka cluster id
+  command: "{{ kafka_install_dir }}/bin/kafka-storage.sh random-uuid"
+  register: kafka_cluster_id
+  changed_when: false
+  when: not kafka_meta.stat.exists
+
+- name: Format the Kafka storage directory
+  command: >-
+    {{ kafka_install_dir }}/bin/kafka-storage.sh format
+    -t {{ kafka_cluster_id.stdout }}
+    -c {{ kafka_config_file }}
+    --ignore-formatted
+  become_user: "{{ kafka_user }}"
+  when: not kafka_meta.stat.exists
+  notify: Restart Kafka
+
+- name: Install the Kafka systemd unit
+  template:
+    src: kafka.service.j2
+    dest: "/etc/systemd/system/{{ kafka_service }}.service"
+    mode: "0644"
+  notify: Restart Kafka
+
+- name: Reload the systemd daemon
+  systemd:
+    daemon_reload: true
+
+- name: Apply the configuration before starting the service
+  meta: flush_handlers
+
+- name: Ensure Kafka is enabled and running
+  systemd:
+    name: "{{ kafka_service }}"
+    state: started
+    enabled: true
+
+- name: Wait for the Kafka broker
+  wait_for:
+    host: "{{ kafka_advertised_host }}"
+    port: "{{ kafka_port }}"
+    timeout: 120
+    delay: 5
